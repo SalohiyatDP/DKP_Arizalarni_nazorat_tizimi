@@ -214,20 +214,23 @@ yuklab olish), `npm run logs` (loglar), `npm run open` (muharrir).
 
 ---
 
-### B varianti — qo'lda nusxalash (clasp'siz)
+### B varianti — qo'lda yuklash (clasp'siz) — TAYYOR `.gs` / `.html` fayllar
 
-`clasp`'siz ham bo'ladi, lekin fayllar ko'p — har birini qo'lda yaratasiz.
+Apps Script'ga qo'lda yuklash uchun barcha fayllar allaqachon tayyor holda
+**`gas/`** papkasida turibdi: har bir server moduli `.gs`, qobiq `Index.html`
+va `appsscript.json`. Fayl nomlari **yassi** (papkasiz) — chunki Apps Script
+fayllarni yassi saqlaydi va modullar yuklash tartibidan mustaqil.
 
-1. Apps Script muharririda chap paneldagi **+ → Script** bilan yangi fayl
-   yarating va nomini **papka yo'li bilan** bering, masalan: `core/Namespace`,
-   `config/Config`, `repositories/BaseRepository` va hokazo. Apps Script `/`
-   belgisini "papka" sifatida ko'rsatadi.
-2. Ushbu repozitoriyadagi `src/...` faylining mazmunini muharrirdagi mos faylga
-   to'liq nusxalang. **Barcha** `src/**/*.js` fayllar uchun takrorlang.
-3. HTML uchun **+ → HTML** bilan `views/Index` faylini yarating va
-   `src/views/Index.html` mazmunini nusxalang.
-4. Manifest uchun `appsscript.json` faylini oching (0-bosqichda yoqilgan) va
-   `src/appsscript.json` mazmuni bilan almashtiring.
+1. Spreadsheet → **Extensions → Apps Script**.
+2. Har bir `gas/*.gs` fayl uchun: muharrirda **+ → Script** → faylga o'sha nomni
+   bering (masalan `Config`, `BaseRepository` — `.gs` yozilmaydi) → fayl
+   mazmunini to'liq nusxalab qo'ying.
+3. **+ → HTML** → nomi `Index` → `gas/Index.html` mazmunini nusxalang.
+4. `appsscript.json` (manifest) faylini oching (0-bosqichda "Show manifest"
+   yoqilgan) → `gas/appsscript.json` mazmuni bilan almashtiring.
+
+> Boshlang'ich (default) `Code.gs` faylini o'chirib yuborishingiz mumkin.
+> Jami: **38 ta `.gs` + `Index.html` + `appsscript.json`**.
 
 > Fayllar tartibi muhim emas — modullar bir-birini faqat funksiya ichida
 > chaqiradi (load-order'dan mustaqil).
