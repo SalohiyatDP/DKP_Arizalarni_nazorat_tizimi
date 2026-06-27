@@ -1,0 +1,11 @@
+{
+  "scriptId": "<PASTE_YOUR_APPS_SCRIPT_PROJECT_ID_HERE>",
+  "rootDir": "src",
+  "scriptExtensions": [".js", ".gs"],
+  "htmlExtensions": [".html"],
+  "filePushOrder": [
+    "src/core/Namespace.js",
+    "src/core/AppError.js",
+    "src/core/Result.js"
+  ]
+}
