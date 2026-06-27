@@ -129,10 +129,11 @@ ACTION_LOG, MONTHLY_STATS, CACHE` — `src/config/Config.js` da ro'yxatga olinga
 ```
 src/
 ├── appsscript.json            # manifest (V8, Asia/Tashkent, webapp + scope'lar)
+├── Diagnostics.js             # healthCheck() / getAppInfo() — o'rnatishni tekshirish
 ├── core/                      # Namespace · AppError · Result
-├── config/                    # Config · Constants · Schema
+├── config/                    # Config · Constants · Schema · Settings
 ├── utils/                     # Logger · Date/String/Array/Map · Sanitizer · Validator · Hash
-├── repositories/              # Base · Hisobot · Employee · Holiday · Log · Cache
+├── repositories/              # Base · Cache · Settings · Hisobot · Employee · Holiday · Log
 ├── services/                  # Calendar · Auth · Permission · Import · BusinessLogic
 │                              #   · Statistics · Finance · Dashboard · Export · Log
 ├── controllers/               # Auth · Dashboard · Import · Export
@@ -147,7 +148,7 @@ src/
 | Bosqich | Qamrov | Holat |
 |------:|-------|--------|
 | 1 | Loyiha arxitekturasi | ✅ shu yetkazib berish |
-| 2 | Konfiguratsiya (SETTINGS override, sheet handle'lar) | ⏳ |
+| 2 | Konfiguratsiya (SETTINGS override, sheet handle'lar) | ✅ |
 | 3 | Autentifikatsiya va Ruxsatlar | ⏳ |
 | 4 | Import dvigateli | ⏳ |
 | 5 | Biznes-mantiq va Ish kunlari kalendari | ⏳ |
@@ -162,12 +163,112 @@ Har bir bosqich keyingisidan oldin yetkazib berilib, ko'rib chiqiladi.
 
 ---
 
-## Lokal sozlash (clasp)
+## Apps Script'ga yuklash (Deployment)
 
-Manba kodi [`clasp`](https://github.com/google/clasp) uchun moslangan.
+Kod **bog'langan (container-bound)** Apps Script loyihasiga yuklanadi — ya'ni
+mavjud Google Spreadsheet ichidagi skriptga. Ikki yo'l bor: **A) `clasp`
+orqali** (tavsiya etiladi, 35+ fayl uchun qulay) va **B) qo'lda nusxalash**.
 
-1. `npm i -g @google/clasp && clasp login`
-2. `.clasp.json.example` faylini `.clasp.json` ga nusxalang va script id'ni
-   qo'ying (mavjud jadvalga bog'langan loyiha). `rootDir` — `src`.
-3. Yuklash uchun `clasp push`. `.clasp.json` git tomonidan e'tiborsiz
-   qoldiriladi (hech qachon commit qilinmaydi).
+### 0. Tayyorgarlik: Script ID'ni olish
+
+1. Google Spreadsheet'ni oching → menyuda **Extensions → Apps Script**.
+2. Ochilgan Apps Script muharririda **Project Settings (⚙️)** bo'limiga o'ting.
+3. **Script ID** ni nusxalab oling (bu loyiha jadvalga allaqachon bog'langan).
+4. O'sha sahifada **"Show 'appsscript.json' manifest file in editor"** ni yoqing
+   (manifestni ko'rish/tahrirlash uchun).
+
+---
+
+### A varianti — `clasp` orqali (tavsiya etiladi)
+
+Talab: kompyuteringizda **Node.js** o'rnatilgan bo'lsin.
+
+```bash
+# 1. Repozitoriyni klonlash
+git clone https://github.com/SalohiyatDP/DKP_Arizalarni_nazorat_tizimi.git
+cd DKP_Arizalarni_nazorat_tizimi
+
+# 2. clasp'ni o'rnatish va Google hisobingizga kirish
+npm install                 # @google/clasp dev-dependency sifatida
+npx clasp login             # brauzerda Google hisobni tasdiqlaysiz
+
+# 3. .clasp.json faylini yaratish (namunadan nusxalab, Script ID'ni qo'ying)
+cp .clasp.json.example .clasp.json
+#   .clasp.json ichidagi <PASTE_YOUR_APPS_SCRIPT_PROJECT_ID_HERE> o'rniga
+#   0-bosqichda olingan Script ID'ni yozing. rootDir allaqachon "src".
+
+# 4. Kodni Apps Script'ga yuklash
+npm run push                # = clasp push  (barcha src/ fayllarni yuklaydi)
+
+# 5. Muharrirni ochish
+npm run open                # = clasp open
+```
+
+> `clasp push` paytida "Manifest file has been updated. Do you want to push and
+> overwrite?" so'ralsa — **Yes**. `.clasp.json` `.gitignore`'da, hech qachon
+> commit qilinmaydi.
+
+Mavjud `package.json` skriptlari: `npm run push` (yuklash),
+`npm run watch` (o'zgarishni avtomatik yuklash), `npm run pull` (Apps Script'dan
+yuklab olish), `npm run logs` (loglar), `npm run open` (muharrir).
+
+---
+
+### B varianti — qo'lda nusxalash (clasp'siz)
+
+`clasp`'siz ham bo'ladi, lekin fayllar ko'p — har birini qo'lda yaratasiz.
+
+1. Apps Script muharririda chap paneldagi **+ → Script** bilan yangi fayl
+   yarating va nomini **papka yo'li bilan** bering, masalan: `core/Namespace`,
+   `config/Config`, `repositories/BaseRepository` va hokazo. Apps Script `/`
+   belgisini "papka" sifatida ko'rsatadi.
+2. Ushbu repozitoriyadagi `src/...` faylining mazmunini muharrirdagi mos faylga
+   to'liq nusxalang. **Barcha** `src/**/*.js` fayllar uchun takrorlang.
+3. HTML uchun **+ → HTML** bilan `views/Index` faylini yarating va
+   `src/views/Index.html` mazmunini nusxalang.
+4. Manifest uchun `appsscript.json` faylini oching (0-bosqichda yoqilgan) va
+   `src/appsscript.json` mazmuni bilan almashtiring.
+
+> Fayllar tartibi muhim emas — modullar bir-birini faqat funksiya ichida
+> chaqiradi (load-order'dan mustaqil).
+
+---
+
+### Yuklangandan keyin tekshirish ✅
+
+1. Muharrirda yuqoridagi funksiya ro'yxatidan **`healthCheck`** ni tanlang →
+   **Run** bosing. Birinchi marta Google **ruxsat (authorization)** so'raydi —
+   tasdiqlang.
+2. **Execution log** (View → Logs) da hisobotni ko'rasiz:
+   - `spreadsheet` — bog'langan jadval nomi,
+   - `sheets` — har bir kerakli varaq bor/yo'qligi,
+   - `missing` — topilmagan varaqlar ro'yxati (bo'sh bo'lishi kerak),
+   - `settings` — SETTINGS asosida hisoblangan amaldagi qiymatlar,
+   - `ok: true` — hammasi joyida.
+
+`getAppInfo` funksiyasi esa versiya/bosqich ma'lumotini qaytaradi.
+
+---
+
+### Web App sifatida ishga tushirish (deploy)
+
+1. Muharrirda **Deploy → New deployment** → tur sifatida **Web app**.
+2. **Execute as:** *Me* (sizning nomingizdan), **Who has access:** tashkilot
+   siyosatiga qarab (masalan, *Anyone within <tashkilot>*).
+3. **Deploy** → berilgan **Web app URL** orqali ilova ochiladi (hozircha
+   1–2-bosqich qobig'i ko'rinadi; to'liq UI 8-bosqichda).
+4. Keyinchalik kod yangilanganda: `clasp push` → **Deploy → Manage deployments**
+   → mavjud deploymentni **Edit → New version → Deploy**.
+
+> CLI orqali ham: `npm run deploy` (`clasp deploy`).
+
+---
+
+### Hozircha nima ishlaydi (1–2-bosqich)
+
+- `doGet` web ilovaning qobig'ini (`views/Index`) uzatadi.
+- `healthCheck()` o'rnatishni va sozlamalarni tekshiradi.
+- Ma'lumotlarga kirish (BaseRepository), kesh (CacheRepository) va sozlamalar
+  (Settings) qatlami to'liq ishlaydi.
+- Autentifikatsiya/import/dashboard `api()` chaqiruvlari hozircha
+  `"Not implemented"` qaytaradi — ular 3–9-bosqichlarda ulanadi.
