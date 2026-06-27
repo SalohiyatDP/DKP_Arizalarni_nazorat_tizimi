@@ -1,64 +1,67 @@
 # DKP Arizalar Nazorati
 
-Enterprise application-monitoring system built on **Google Apps Script** (V8) with a
-**Google Sheets** database and an **HTML5 / Material Design** web-app frontend.
+**Google Apps Script** (V8) platformasida qurilgan korporativ ariza nazorati
+tizimi. Ma'lumotlar bazasi sifatida **Google Sheets**, frontend sifatida
+**HTML5 / Material Design** web-ilova ishlatiladi.
 
-> The administrator uploads a daily report with one click; the system then
-> recalculates statistics, finance, deadlines, dashboards, permissions, caches
-> and logs automatically — and stays fast and secure at 100k+ rows.
+> Administrator bir marta bosib kunlik hisobotni yuklaydi; shundan so'ng tizim
+> statistika, moliya, muddatlar, dashboard, ruxsatlar, kesh va loglarni
+> avtomatik qayta hisoblaydi — va 100 000+ qatorda ham tez hamda xavfsiz
+> ishlashda davom etadi.
 
-This repository is being delivered **in phases**. The current state is
-**Phase 1 — Project Architecture**: the full layered skeleton, conventions and
-core primitives are in place; business logic is implemented in later phases.
+Loyiha **bosqichma-bosqich** yetkazib beriladi. Hozirgi holat:
+**1-bosqich — Loyiha arxitekturasi**. To'liq qatlamli skelet, kelishuvlar
+(conventions) va asosiy primitivlar tayyor; biznes-mantiq keyingi bosqichlarda
+amalga oshiriladi.
 
 ---
 
-## Architecture at a glance
+## Arxitektura qisqacha
 
-A strict, one-directional layered (MVC-ish) architecture. Dependencies only ever
-point **downward** — an inner layer never imports an outer one.
+Qat'iy, bir tomonlama qatlamli (MVC ko'rinishidagi) arxitektura. Bog'liqliklar
+faqat **pastga** yo'naladi — ichki qatlam hech qachon tashqi qatlamni chaqirmaydi.
 
 ```
-            Browser (HTML5 / Material Design SPA)
+            Brauzer (HTML5 / Material Design SPA)
                        │  google.script.run -> api()
         ┌──────────────▼───────────────┐
         │  web/        WebApp router    │  doGet · include · dispatch (+ auth/CSRF)
         ├──────────────┬───────────────┤
-        │ controllers/ │ validate · authorize · envelope   (no business logic)
+        │ controllers/ │ tekshirish · ruxsat · envelope   (biznes-mantiq yo'q)
         ├──────────────┼───────────────┤
-        │ services/    │ business logic, orchestration      (the "brains")
+        │ services/    │ biznes-mantiq, orkestratsiya      ("miya")
         ├──────────────┼───────────────┤
-        │ repositories/│ ALL sheet I/O (single get/setValues, chunking, cache)
+        │ repositories/│ BARCHA sheet I/O (yagona get/setValues, chunk, kesh)
         ├──────────────┼───────────────┤
-        │ utils/       │ pure helpers (dates, strings, hashing, validation)
+        │ utils/       │ toza yordamchilar (sana, matn, hash, tekshirish)
         ├──────────────┼───────────────┤
-        │ config/      │ Config · Constants · Schema  (single source of truth)
+        │ config/      │ Config · Constants · Schema  (yagona haqiqat manbai)
         ├──────────────┴───────────────┤
-        │ core/        Namespace · AppError · Result        (primitives)
+        │ core/        Namespace · AppError · Result        (primitivlar)
         └───────────────────────────────┘
                        │
-            Google Sheets (existing DB) + CacheService / PropertiesService
+            Google Sheets (mavjud BD) + CacheService / PropertiesService
 ```
 
-### Layer responsibilities
+### Qatlamlar vazifasi
 
-| Layer | Folder | Responsibility |
-|------|--------|----------------|
-| Core | `src/core` | Module convention, typed `AppError`, `Result` envelope. |
-| Config | `src/config` | Sheet registry, enums, HISOBOT column schema. No hardcoded names elsewhere. |
-| Utils | `src/utils` | Pure, reusable helpers (no sheet access). |
-| Repositories | `src/repositories` | The **only** place that touches `SpreadsheetApp` / Cache. |
-| Services | `src/services` | Business logic, calculations, orchestration. |
-| Controllers | `src/controllers` | API boundary: validate, authorize, delegate, return envelope. |
-| Web | `src/web` | `doGet`/`api` routing, HTML serving, central error handling. |
-| Views | `src/views` | Material Design SPA (built in Phase 8). |
+| Qatlam | Papka | Vazifasi |
+|------|--------|----------|
+| Core | `src/core` | Modul kelishuvi, tipli `AppError`, `Result` envelope. |
+| Config | `src/config` | Sheet ro'yxati, enumlar, HISOBOT ustun sxemasi. Boshqa joyda nom qattiq yozilmaydi. |
+| Utils | `src/utils` | Toza, qayta ishlatiluvchi yordamchilar (sheet'ga murojaat yo'q). |
+| Repositories | `src/repositories` | `SpreadsheetApp` / Cache'ga tegadigan **yagona** joy. |
+| Services | `src/services` | Biznes-mantiq, hisob-kitoblar, orkestratsiya. |
+| Controllers | `src/controllers` | API chegarasi: tekshirish, ruxsat, delegatsiya, envelope qaytarish. |
+| Web | `src/web` | `doGet`/`api` marshrutlash, HTML uzatish, markaziy xatolik boshqaruvi. |
+| Views | `src/views` | Material Design SPA (8-bosqichda quriladi). |
 
 ---
 
-## Module conventions
+## Modul kelishuvlari
 
-Google Apps Script loads every file into one shared global scope, so we use the
-**frozen IIFE module** pattern:
+Google Apps Script har bir faylni yagona umumiy (global) ko'lamga yuklaydi,
+shuning uchun biz **muzlatilgan IIFE moduli** namunasidan foydalanamiz:
 
 ```js
 var SomeModule = (function () {
@@ -68,55 +71,64 @@ var SomeModule = (function () {
 })();
 ```
 
-Rules that keep this safe and maintainable:
+Buni xavfsiz va boshqariladigan qiladigan qoidalar:
 
-1. **No cross-module calls at load time.** Modules reference each other only
-   inside functions, so file load order never matters.
-2. **Config is the single source of truth.** No sheet name, column, role or
-   status string is hardcoded outside `src/config`.
-3. **Repositories own all I/O.** Services/controllers never call `SpreadsheetApp`.
-4. **Errors are typed.** Functions return `Result.ok/fail(AppError)`; the web
-   layer converts them to client-safe envelopes and never leaks internals.
-5. **Security is server-side.** Permissions/sessions are validated on the
-   server for every action; frontend hints are never trusted.
-6. **Every function has JSDoc** and is annotated with the phase that implements it.
-
----
-
-## Performance contract (for 100k+ rows)
-
-- One `getValues()` to read, one (chunked) `setValues()` to write — never per-cell.
-- Build `Map`/object indexes once; replace `VLOOKUP`/`INDEX-MATCH` with O(1) lookups.
-- Aggregations are **single-pass** (`COUNTIFS`/`SUMIFS` → one loop) and
-  **pre-computed**, then cached. The dashboard reads snapshots, not raw data.
-- Server-side filtering, pagination, debounced search; chunked import processing.
-- No business calculations in spreadsheet formulas — all in JavaScript.
+1. **Yuklash vaqtida modullararo chaqiriq yo'q.** Modullar bir-birini faqat
+   funksiyalar ichida chaqiradi, shuning uchun fayllarning yuklanish tartibi
+   hech qachon ahamiyatga ega emas.
+2. **Config — yagona haqiqat manbai.** Hech qaysi sheet nomi, ustun, rol yoki
+   status matni `src/config` tashqarisida qattiq yozilmaydi.
+3. **Barcha I/O repository'larda.** Service/controller'lar `SpreadsheetApp`'ni
+   bevosita chaqirmaydi.
+4. **Xatoliklar tipli.** Funksiyalar `Result.ok/fail(AppError)` qaytaradi; web
+   qatlami ularni mijozga xavfsiz envelope'ga aylantiradi va ichki ma'lumotni
+   oshkor qilmaydi.
+5. **Xavfsizlik server tomonda.** Ruxsat/sessiya har bir amal uchun serverda
+   tekshiriladi; frontend ko'rsatmalariga hech qachon ishonilmaydi.
+6. **Har bir funksiyada JSDoc bor** va u qaysi bosqichda amalga oshirilishi
+   izohlangan.
 
 ---
 
-## Daily import pipeline (Phase 4)
+## Unumdorlik shartnomasi (100 000+ qator uchun)
+
+- O'qish uchun bitta `getValues()`, yozish uchun bitta (chunk'langan)
+  `setValues()` — hech qachon har bir katak alohida emas.
+- `Map`/obyekt indekslarini bir marta qurish; `VLOOKUP`/`INDEX-MATCH` o'rniga
+  O(1) qidiruv.
+- Agregatsiyalar **bir martalik aylanish** (`COUNTIFS`/`SUMIFS` → bitta loop)
+  va **oldindan hisoblangan**, so'ng keshlangan. Dashboard xom ma'lumotni emas,
+  tayyor snapshot'larni o'qiydi.
+- Server tomonda filtrlash, sahifalash (pagination), debounced qidiruv;
+  import'ni chunk'lab qayta ishlash.
+- Biznes hisob-kitoblari jadval formulalarida emas — barchasi JavaScript'da.
+
+---
+
+## Kunlik import quvuri (4-bosqich)
 
 ```
-Backup → Read → Validate → Transform → Business Logic → Statistics →
-Finance → Cache → Dashboard refresh → Logs → Done   (rollback on failure)
+Backup → O'qish → Tekshirish → Transform → Biznes-mantiq → Statistika →
+Moliya → Kesh → Dashboard yangilash → Loglar → Tayyor   (xatolikda rollback)
 ```
 
 ---
 
-## Existing database (do NOT recreate)
+## Mavjud ma'lumotlar bazasi (QAYTA yaratilmaydi)
 
 `DASHBOARD, HISOBOT, DATA, STATISTICS, FINANCE, LOGIN, EMPLOYEES, SETTINGS,
 HOLIDAYS, SERVICE_RULES, AREA_RULES, EXPORT, BACKUP, IMPORT_LOG, LOGIN_LOG,
-ACTION_LOG, MONTHLY_STATS, CACHE` — registered in `src/config/Config.js`.
-`HISOBOT` is the primary daily-imported data source (~18k → 100k+ rows, ~73 cols).
+ACTION_LOG, MONTHLY_STATS, CACHE` — `src/config/Config.js` da ro'yxatga olingan.
+`HISOBOT` — asosiy kunlik import qilinadigan ma'lumot manbai
+(~18 000 → 100 000+ qator, ~73 ustun).
 
 ---
 
-## Project layout
+## Loyiha tuzilmasi
 
 ```
 src/
-├── appsscript.json            # manifest (V8, Asia/Tashkent, webapp + scopes)
+├── appsscript.json            # manifest (V8, Asia/Tashkent, webapp + scope'lar)
 ├── core/                      # Namespace · AppError · Result
 ├── config/                    # Config · Constants · Schema
 ├── utils/                     # Logger · Date/String/Array/Map · Sanitizer · Validator · Hash
@@ -125,36 +137,37 @@ src/
 │                              #   · Statistics · Finance · Dashboard · Export · Log
 ├── controllers/               # Auth · Dashboard · Import · Export
 ├── web/                       # WebApp (doGet/api router)
-└── views/                     # Index.html (SPA shell)
+└── views/                     # Index.html (SPA qobig'i)
 ```
 
 ---
 
-## Development roadmap
+## Ishlab chiqish yo'l xaritasi
 
-| Phase | Scope | Status |
+| Bosqich | Qamrov | Holat |
 |------:|-------|--------|
-| 1 | Project Architecture | ✅ this delivery |
-| 2 | Configuration (SETTINGS overrides, sheet handles) | ⏳ |
-| 3 | Authentication & Permissions | ⏳ |
-| 4 | Import Engine | ⏳ |
-| 5 | Business Logic & Working-day Calendar | ⏳ |
-| 6 | Statistics & Logging | ⏳ |
-| 7 | Finance | ⏳ |
+| 1 | Loyiha arxitekturasi | ✅ shu yetkazib berish |
+| 2 | Konfiguratsiya (SETTINGS override, sheet handle'lar) | ⏳ |
+| 3 | Autentifikatsiya va Ruxsatlar | ⏳ |
+| 4 | Import dvigateli | ⏳ |
+| 5 | Biznes-mantiq va Ish kunlari kalendari | ⏳ |
+| 6 | Statistika va Loglash | ⏳ |
+| 7 | Moliya | ⏳ |
 | 8 | Dashboard (Material Design UI) | ⏳ |
-| 9 | Export (Excel/PDF/CSV/Print, queue) | ⏳ |
-| 10 | Optimization (cache, pagination, chunking) | ⏳ |
-| 11 | Testing | ⏳ |
+| 9 | Eksport (Excel/PDF/CSV/Print, navbat) | ⏳ |
+| 10 | Optimizatsiya (kesh, pagination, chunking) | ⏳ |
+| 11 | Testlash | ⏳ |
 
-Each phase is delivered and reviewed before the next begins.
+Har bir bosqich keyingisidan oldin yetkazib berilib, ko'rib chiqiladi.
 
 ---
 
-## Local setup (clasp)
+## Lokal sozlash (clasp)
 
-The source is structured for [`clasp`](https://github.com/google/clasp).
+Manba kodi [`clasp`](https://github.com/google/clasp) uchun moslangan.
 
 1. `npm i -g @google/clasp && clasp login`
-2. Copy `.clasp.json.example` to `.clasp.json` and paste your script id
-   (the project bound to the existing spreadsheet). `rootDir` is `src`.
-3. `clasp push` to upload. `.clasp.json` is git-ignored (never committed).
+2. `.clasp.json.example` faylini `.clasp.json` ga nusxalang va script id'ni
+   qo'ying (mavjud jadvalga bog'langan loyiha). `rootDir` — `src`.
+3. Yuklash uchun `clasp push`. `.clasp.json` git tomonidan e'tiborsiz
+   qoldiriladi (hech qachon commit qilinmaydi).
