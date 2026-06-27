@@ -10,11 +10,12 @@
  *   IMPORTANT: The sheets listed already exist in the bound spreadsheet and
  *   MUST NOT be recreated by the system.
  *
- *   Tunable runtime values (batch sizes, cache TTLs, lockout thresholds) will
- *   be loaded/overridable from the SETTINGS sheet in Phase 2 via
- *   Config.loadOverrides(). The constants here are safe defaults.
+ *   The Performance/Security/Features blocks here are IMMUTABLE DEFAULTS. The
+ *   admin-editable runtime values come from the SETTINGS sheet and are merged
+ *   over these defaults by config/Settings. Read tunables via Settings.* (not
+ *   Config.Performance.* directly) so SETTINGS overrides always take effect.
  *
- * @phase 1 (Architecture) — overrides wired in Phase 2
+ * @phase 2 (Configuration) — defaults consumed by config/Settings
  */
 
 var Config = (function () {
@@ -55,6 +56,7 @@ var Config = (function () {
   /** Cache / PropertiesService key namespaces (avoid collisions). */
   var CacheKeys = {
     PREFIX: 'dkp:',
+    SETTINGS: 'dkp:settings',
     DASHBOARD: 'dkp:dashboard:',
     STATS: 'dkp:stats:',
     FINANCE: 'dkp:finance:',
@@ -62,7 +64,7 @@ var Config = (function () {
     SESSION: 'dkp:session:'
   };
 
-  /** Performance / processing defaults (tunable via SETTINGS in Phase 2). */
+  /** Performance / processing defaults (overridable via SETTINGS -> Settings). */
   var Performance = {
     READ_CHUNK_ROWS: 5000,        // chunked getValues window
     WRITE_BATCH_ROWS: 2000,       // chunked setValues window
@@ -71,7 +73,7 @@ var Config = (function () {
     SEARCH_DEBOUNCE_MS: 300
   };
 
-  /** Security defaults (tunable via SETTINGS in Phase 2). */
+  /** Security defaults (overridable via SETTINGS -> Settings). */
   var Security = {
     SESSION_TTL_MINUTES: 60,
     MAX_FAILED_LOGINS: 5,
@@ -86,22 +88,12 @@ var Config = (function () {
     ROLLBACK_ON_IMPORT_FAILURE: true
   };
 
-  /**
-   * Phase 2 hook: merge tunables from the SETTINGS sheet over the defaults.
-   * @return {void}
-   * @todo Implement in Phase 2 (Configuration).
-   */
-  function loadOverrides() {
-    // TODO(Phase 2): read SETTINGS sheet and override Performance/Security/Features.
-  }
-
   return App.deepFreeze({
     Sheets: Sheets,
     LogSheets: LogSheets,
     CacheKeys: CacheKeys,
     Performance: Performance,
     Security: Security,
-    Features: Features,
-    loadOverrides: loadOverrides
+    Features: Features
   });
 })();

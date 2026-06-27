@@ -31,8 +31,8 @@ var App = (typeof App !== 'undefined' && App) ? App : {};
 
 App.META = Object.freeze({
   NAME: 'DKP Arizalar Nazorati',
-  VERSION: '0.1.0',
-  PHASE: 1,
+  VERSION: '0.2.0',
+  PHASE: 2,
   DESCRIPTION: 'Enterprise application monitoring system on Google Apps Script.'
 });
 
